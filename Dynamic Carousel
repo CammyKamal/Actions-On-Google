@@ -1,0 +1,88 @@
+
+ 
+const {Carousel,DialogflowConversation,SimpleResponse} = require('actions-on-google');
+const functions = require('firebase-functions');
+const {WebhookClient} = require('dialogflow-fulfillment');
+const {Card, Suggestion} = require('dialogflow-fulfillment');
+
+const firebase=require('firebase');
+const fetch=require('node-fetch');
+const http=require('http')
+
+  var config = {
+    apiKey: "",
+    authDomain: "yourdomain.firebaseapp.com",
+    databaseURL: "your database url",
+    projectId: "your project id",
+    storageBucket: "your storage bucket",
+    messagingSenderId: "your messaging id"
+  };
+  firebase.initializeApp(config);
+  
+  
+ 
+process.env.DEBUG = 'dialogflow:debug'; // enables lib debugging statements
+ 
+exports.dialogflowFirebaseFulfillment = functions.https.onRequest((request, response) => {
+  const agent = new WebhookClient({ request, response });
+  const conv = new DialogflowConversation(request);
+  console.log('Dialogflow Request headers: ' + JSON.stringify(request.headers));
+  console.log('Dialogflow Request body: ' + JSON.stringify(request.body));
+ 
+  function welcome(agent) {
+    agent.add(`Welcome to my agent!`);
+  }
+ 
+  function fallback(agent) {
+    agent.add(`I didn't understand`);
+    agent.add(`I'm sorry, can you try again?`);
+}
+
+
+
+function createCarousel(agent){
+ //Getting reference of main data from Real time database
+     
+ var reference=firebase.database().ref('data');
+   
+ var newRoot = reference.child('data');
+    
+ var temp=0;
+ var items = {}
+ newRoot.once('value', function(snapshot){
+ snapshot.forEach(function(_child){
+          
+  items[temp] = {
+      optionInfo: {
+                   key: (temp + 1).toString(),
+                   synonyms: childData.name,
+                  },
+      title: childData.name,
+      url: childData.imageurl,
+      image: new Image({
+             url: childData.imageurl,
+             alt: childData.venue
+            }),
+     }
+  })
+    temp=temp+1; 
+   
+     });
+ agent.add(new Carousel({
+    title: 'Search Results',
+    items: items
+  }));
+
+}
+
+
+
+ 
+
+  // Run the proper function handler based on the matched Dialogflow intent name
+  let intentMap = new Map();
+  intentMap.set('Default Welcome Intent', welcome);
+  intentMap.set('Default Fallback Intent', fallback);
+  intentMap.set('Carousel', createCarousel);
+  agent.handleRequest(intentMap);
+});
